@@ -1,8 +1,243 @@
 <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image to JSON Converter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f9;
+            color: #333;
+        }
 
-<html>
-    <body>
-        <h1>Image to Json</h1>
-        <p>I'm hosted with GitHub Pages.</p>
-    </body>
+        h1 {
+            text-align: center;
+            color: #4a90e2;
+        }
+
+        form {
+            max-width: 400px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .image-upload {
+            position: relative;
+            width: 100%;
+            height: 200px;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #fafafa;
+        }
+
+        .image-upload img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+        }
+
+        .image-upload:hover::before {
+            content: "Click to upload a picture";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            background-color: rgba(0, 0, 0, 0.6);
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+            z-index: 1;
+        }
+
+        .image-upload:hover img {
+            opacity: 0.3;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        label {
+            font-size: 14px;
+            font-weight: bold;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        input[type="number"] {
+            width: calc(100% - 10px);
+            padding: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        button {
+            background-color: #4a90e2;
+            color: white;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+
+        button:hover {
+            background-color: #357ab8;
+        }
+
+        #output {
+            max-width: 700px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: none;
+        }
+
+        textarea {
+            width: 100%;
+            height: 200px;
+            margin-top: 10px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: monospace;
+            resize: none;
+        }
+
+        .buttons {
+            text-align: right;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Image to JSON Converter</h1>
+    <form id="uploadForm">
+        <div class="image-upload" id="imageUpload">
+            <img id="imagePreview" src="" alt="Image Preview">
+            <input type="file" id="image" accept="image/*">
+        </div>
+        <label for="height">Output Height:</label>
+        <input type="number" id="height" value="15" min="1" required>
+        <button type="submit">Convert</button>
+    </form>
+    <div id="output">
+        <h2>Generated JSON:</h2>
+        <textarea id="jsonOutput" readonly></textarea>
+        <div class="buttons">
+            <button id="copyButton">Copy to Clipboard</button>
+        </div>
+    </div>
+    <script>
+        document.getElementById('imageUpload').addEventListener('click', () => {
+            document.getElementById('image').click();
+        });
+
+        document.getElementById('image').addEventListener('change', function () {
+            const file = this.files[0];
+            const preview = document.getElementById('imagePreview');
+
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        document.getElementById('uploadForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const fileInput = document.getElementById('image');
+            const heightInput = document.getElementById('height');
+            const outputDiv = document.getElementById('output');
+            const outputTextarea = document.getElementById('jsonOutput');
+
+            if (fileInput.files.length === 0) {
+                alert('Please upload an image.');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const height = parseInt(heightInput.value, 10);
+
+            if (height <= 0) {
+                alert('Invalid height.');
+                return;
+            }
+
+            const imageData = await fileToJSON(file, height);
+            if (imageData) {
+                outputDiv.style.display = 'block';
+                outputTextarea.textContent = imageData;
+            }
+        });
+
+        document.getElementById('copyButton').addEventListener('click', function () {
+            const jsonOutput = document.getElementById('jsonOutput');
+            jsonOutput.select();
+            document.execCommand('copy');
+            alert('Copied to clipboard!');
+        });
+
+        async function fileToJSON(file, outputHeight) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = function () {
+                    const img = new Image();
+                    img.onload = function () {
+                        const canvas = document.createElement('canvas');
+                        const aspectRatio = img.width / img.height;
+                        const outputWidth = Math.round(outputHeight * aspectRatio);
+
+                        canvas.width = outputWidth;
+                        canvas.height = outputHeight;
+                        const ctx = canvas.getContext('2d');
+
+                        ctx.drawImage(img, 0, 0, outputWidth, outputHeight);
+                        const pixels = ctx.getImageData(0, 0, outputWidth, outputHeight).data;
+
+                        let jsonOutput = "execute as @e[type=text_display,tag=image] run data modify entity @s text set value '[";
+                        for (let y = 0; y < outputHeight; y++) {
+                            for (let x = 0; x < outputWidth; x++) {
+                                const index = (y * outputWidth + x) * 4;
+                                const r = pixels[index];
+                                const g = pixels[index + 1];
+                                const b = pixels[index + 2];
+                                jsonOutput += `{"text":"█","color":"#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}"}`;
+                                if (x + 1 !== outputWidth) jsonOutput += ",";
+                            }
+                            if (y + 1 !== outputHeight) jsonOutput += ',{"text":"\\\\n"},';
+                        }
+                        jsonOutput += "]';";
+                        resolve(jsonOutput);
+                    };
+                    img.onerror = reject;
+                    img.src = reader.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+    </script>
+</body>
 </html>
